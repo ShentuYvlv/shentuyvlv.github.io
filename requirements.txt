@@ -1,0 +1,7 @@
+flask==3.0.0
+flask-cors==4.0.0
+pdfplumber==0.10.3
+openai>=1.0.0          # 新增这个
+python-dotenv==1.0.0   # 记得加上这个加载 .env
+redis==5.0.1
+werkzeug==3.0.1
