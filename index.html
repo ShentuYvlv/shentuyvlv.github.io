@@ -16,96 +16,164 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen p-8">
-    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+<body class="bg-gray-100 min-h-screen p-4 md:p-8 font-sans">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
         <!-- Header -->
-        <div class="bg-blue-600 p-6">
-            <h1 class="text-2xl font-bold text-white">🚀 AI 智能简历筛选系统</h1>
-            <p class="text-blue-100 mt-2">基于阿里云 Serverless + 通义千问大模型</p>
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
+            <h1 class="text-3xl font-extrabold tracking-tight">🚀 AI 智能简历筛选系统</h1>
+            <p class="mt-2 text-blue-100 opacity-90">基于阿里云 Serverless + Qwen-Plus 大模型</p>
         </div>
 
-        <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Left: Inputs -->
-            <div class="space-y-6">
+        <div class="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <!-- Left Column: Input Form -->
+            <div class="space-y-8">
+                <!-- Step 1: Upload -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">1. 上传简历 (PDF)</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">步骤 1</span>
+                        上传简历 (PDF)
+                    </label>
                     <div class="flex items-center justify-center w-full">
-                        <label for="resume-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                        <label for="resume-file" class="flex flex-col items-center justify-center w-full h-40 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all hover:border-blue-400">
                             <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                <svg class="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                                    <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                                </svg>
-                                <p class="text-sm text-gray-500"><span class="font-semibold">点击上传</span> 或拖拽文件</p>
-                                <p class="text-xs text-gray-500" id="file-name">支持 PDF 格式</p>
+                                <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                <p class="text-sm text-gray-500"><span class="font-semibold text-blue-600">点击上传</span> 或拖拽文件</p>
+                                <p class="text-xs text-gray-400 mt-1" id="file-name">支持 PDF 格式</p>
                             </div>
                             <input id="resume-file" type="file" class="hidden" accept=".pdf" />
                         </label>
                     </div>
                 </div>
 
+                <!-- Step 2: JD Input -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">2. 岗位描述 (JD)</label>
-                    <textarea id="jd-text" rows="6" class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500" placeholder="请输入招聘要求，例如：需要3年Python经验，熟悉阿里云..."></textarea>
+                    <label class="block text-sm font-bold text-gray-700 mb-3 flex items-center">
+                        <span class="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">步骤 2</span>
+                        岗位描述 (JD)
+                    </label>
+                    <textarea id="jd-text" rows="8" class="block p-4 w-full text-sm text-gray-900 bg-gray-50 rounded-xl border border-gray-300 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm" placeholder="请粘贴招聘要求...&#10;例如：&#10;1. 3年以上 Python 开发经验&#10;2. 熟悉 Flask/Django 框架&#10;3. 有 AI 大模型应用开发经验优先"></textarea>
                 </div>
 
-                <button onclick="analyzeResume()" id="submit-btn" class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-3 text-center flex justify-center items-center">
+                <!-- Action Button -->
+                <button onclick="analyzeResume()" id="submit-btn" class="w-full text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-4 focus:ring-blue-300 font-bold rounded-xl text-lg px-5 py-4 text-center shadow-lg transition-transform transform hover:-translate-y-0.5">
                     开始智能分析
                 </button>
             </div>
 
-            <!-- Right: Results -->
-            <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">分析结果</h2>
+            <!-- Right Column: Results Display -->
+            <div class="bg-gray-50 rounded-2xl p-6 border border-gray-200 shadow-inner flex flex-col h-full relative">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 border-b pb-4 flex items-center">
+                    📊 分析报告
+                </h2>
                 
-                <div id="loading" class="hidden flex flex-col items-center justify-center h-64">
+                <!-- Loading State -->
+                <div id="loading" class="hidden absolute inset-0 bg-gray-50 z-10 flex flex-col items-center justify-center rounded-2xl">
                     <div class="loader mb-4"></div>
-                    <p class="text-gray-500 animate-pulse">AI 正在阅读简历并打分...</p>
+                    <p class="text-gray-600 font-medium animate-pulse">AI 正在深度阅读简历...</p>
+                    <p class="text-gray-400 text-sm mt-2">正在提取关键信息并进行人岗匹配</p>
                 </div>
 
-                <div id="result-content" class="hidden space-y-4">
+                <!-- Empty State -->
+                <div id="empty-state" class="flex-grow flex flex-col items-center justify-center text-gray-400">
+                    <svg class="w-16 h-16 mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <p class="text-sm">请在左侧上传文件并输入JD</p>
+                </div>
+
+                <!-- Result Content -->
+                <div id="result-content" class="hidden space-y-6 fade-in overflow-y-auto max-h-[800px] pr-2">
+                    
                     <!-- Score Card -->
-                    <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
-                        <span class="text-gray-600">匹配得分</span>
-                        <span id="score-display" class="text-3xl font-bold text-blue-600">--</span>
+                    <div class="flex items-center justify-between bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium uppercase">岗位匹配度</p>
+                            <p class="text-xs text-gray-400">基于技能与经验分析</p>
+                        </div>
+                        <span id="score-display" class="text-4xl font-black text-gray-800">--</span>
                     </div>
 
-                    <!-- Tags -->
-                    <div id="tags-container" class="flex flex-wrap gap-2"></div>
-
-                    <!-- Info List -->
-                    <div class="bg-white p-4 rounded-lg shadow-sm text-sm space-y-2">
-                        <p><strong>姓名:</strong> <span id="res-name">-</span></p>
-                        <p><strong>学历:</strong> <span id="res-edu">-</span></p>
-                        <p><strong>经验:</strong> <span id="res-exp">-</span></p>
-                        <p><strong>电话:</strong> <span id="res-phone">-</span></p>
+                    <!-- 1. 基本信息 -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm">
+                        <h3 class="text-sm font-bold text-gray-400 uppercase mb-4 tracking-wider">👤 基本信息</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-500 block text-xs">姓名</span>
+                                <span id="res-name" class="font-semibold text-gray-800 text-lg">-</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-500 block text-xs">电话</span>
+                                <span id="res-phone" class="font-medium text-gray-700">-</span>
+                            </div>
+                            <div class="md:col-span-2">
+                                <span class="text-gray-500 block text-xs">邮箱</span>
+                                <span id="res-email" class="font-medium text-gray-700 break-all">-</span>
+                            </div>
+                            <div class="md:col-span-2">
+                                <span class="text-gray-500 block text-xs">地址</span>
+                                <span id="res-address" class="font-medium text-gray-700">-</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Analysis -->
-                    <div class="bg-blue-50 p-4 rounded-lg text-sm text-blue-800">
-                        <p class="font-bold mb-1">AI 评价:</p>
-                        <p id="res-reason">...</p>
+                    <!-- 2. 核心背景 -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm">
+                        <h3 class="text-sm font-bold text-gray-400 uppercase mb-4 tracking-wider">🎓 核心背景</h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-gray-500">求职意向</span>
+                                <span id="res-intent" class="font-semibold text-blue-600">-</span>
+                            </div>
+                            <div class="flex justify-between border-b border-gray-100 pb-2">
+                                <span class="text-gray-500">工作年限</span>
+                                <span id="res-exp" class="font-semibold text-gray-800">-</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-500">学历背景</span>
+                                <span id="res-edu" class="font-semibold text-gray-800 text-right">-</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div id="empty-state" class="flex items-center justify-center h-64 text-gray-400 text-sm">
-                    请在左侧上传文件并输入JD
+
+                    <!-- 3. 匹配详情 -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm">
+                        <h3 class="text-sm font-bold text-gray-400 uppercase mb-3 tracking-wider">🏷️ 技能匹配</h3>
+                        <div id="tags-container" class="flex flex-wrap gap-2 mb-4"></div>
+                        
+                        <div class="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 leading-relaxed border border-blue-100">
+                            <span class="font-bold mr-1">💡 AI 评价:</span>
+                            <span id="res-reason">...</span>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 配置你的阿里云函数计算地址
-        const API_URL = 'https://web-jpfaxhhiut.cn-shanghai.fcapp.run/analyze'; 
+        // ============================================================
+        // 🔧 配置区域
+        // ============================================================
+        
+        // 1. 本地测试时使用:
+        const API_URL = 'https://web-jpfaxhhiut.cn-shanghai.fcapp.run/analyze';
+        
+        // 2. 部署到阿里云 FC 后，请替换为你的公网地址，例如:
+        // const API_URL = 'https://你的函数名.cn-hangzhou.fc.aliyuncs.com/analyze'; 
+
+        // ============================================================
 
         const fileInput = document.getElementById('resume-file');
         const fileNameDisplay = document.getElementById('file-name');
 
+        // 文件名显示逻辑
         fileInput.addEventListener('change', (e) => {
             if (e.target.files[0]) {
-                fileNameDisplay.textContent = e.target.files[0].name;
+                fileNameDisplay.textContent = "已选择: " + e.target.files[0].name;
+                fileNameDisplay.classList.add('text-blue-600', 'font-medium');
             }
         });
 
@@ -113,14 +181,14 @@
             const file = fileInput.files[0];
             const jd = document.getElementById('jd-text').value;
 
-            if (!file || !jd) {
-                alert('请确保上传了简历并填写了岗位描述');
-                return;
-            }
+            if (!file) { alert('请先上传简历 PDF 文件'); return; }
+            if (!jd) { alert('请填写岗位描述 (JD)'); return; }
 
-            // UI State Loading
-            document.getElementById('submit-btn').disabled = true;
-            document.getElementById('submit-btn').innerText = '分析中...';
+            // UI 状态切换：加载中
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 分析中...`;
+            
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('result-content').classList.add('hidden');
             document.getElementById('loading').classList.remove('hidden');
@@ -135,52 +203,81 @@
                 });
 
                 renderResult(response.data);
+
             } catch (error) {
                 console.error(error);
-                alert('分析失败: ' + (error.response?.data?.error || error.message));
+                let msg = "请求失败";
+                if (error.response) {
+                    msg = `服务器错误: ${error.response.status} - ${error.response.data.error || '未知错误'}`;
+                } else if (error.request) {
+                    msg = "无法连接到服务器，请检查后端是否启动";
+                }
+                alert(msg);
             } finally {
+                // UI 状态恢复
                 document.getElementById('loading').classList.add('hidden');
-                document.getElementById('submit-btn').disabled = false;
-                document.getElementById('submit-btn').innerText = '开始智能分析';
+                btn.disabled = false;
+                btn.innerHTML = '开始智能分析';
             }
         }
 
         function renderResult(data) {
             document.getElementById('result-content').classList.remove('hidden');
             
-            // Basic Info
-            document.getElementById('res-name').textContent = data.basic_info.name;
-            document.getElementById('res-phone').textContent = data.basic_info.phone;
-            document.getElementById('res-edu').textContent = data.other_info.education;
-            document.getElementById('res-exp').textContent = data.other_info.years_of_experience;
+            // 1. 渲染基本信息
+            setText('res-name', data.basic_info.name);
+            setText('res-phone', data.basic_info.phone);
+            setText('res-email', data.basic_info.email);
+            setText('res-address', data.basic_info.address);
 
-            // Score & Reason
+            // 2. 渲染核心背景
+            setText('res-intent', data.other_info.intent);
+            setText('res-exp', data.other_info.years_of_experience);
+            setText('res-edu', data.other_info.education);
+
+            // 3. 渲染分数
             const score = data.matching_analysis.score;
             const scoreEl = document.getElementById('score-display');
             scoreEl.textContent = score;
-            scoreEl.className = `text-3xl font-bold ${score >= 80 ? 'text-green-600' : score >= 60 ? 'text-yellow-600' : 'text-red-600'}`;
             
-            document.getElementById('res-reason').textContent = data.matching_analysis.reason;
+            // 分数颜色逻辑
+            if (score >= 80) scoreEl.className = "text-4xl font-black text-green-600";
+            else if (score >= 60) scoreEl.className = "text-4xl font-black text-yellow-500";
+            else scoreEl.className = "text-4xl font-black text-red-500";
 
-            // Keywords
+            setText('res-reason', data.matching_analysis.reason);
+
+            // 4. 渲染标签
             const tagsContainer = document.getElementById('tags-container');
             tagsContainer.innerHTML = '';
             
-            // Render Matching Keywords
-            data.matching_analysis.matching_keywords.forEach(kw => {
-                const span = document.createElement('span');
-                span.className = 'px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full';
-                span.textContent = `✅ ${kw}`;
-                tagsContainer.appendChild(span);
-            });
+            // 匹配的关键词
+            if (data.matching_analysis.matching_keywords) {
+                data.matching_analysis.matching_keywords.forEach(kw => {
+                    const span = document.createElement('span');
+                    span.className = 'px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200';
+                    span.textContent = `✅ ${kw}`;
+                    tagsContainer.appendChild(span);
+                });
+            }
 
-            // Render Missing Keywords
-            data.matching_analysis.missing_keywords.forEach(kw => {
-                const span = document.createElement('span');
-                span.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full';
-                span.textContent = `❌ ${kw}`;
-                tagsContainer.appendChild(span);
-            });
+            // 缺失的关键词
+            if (data.matching_analysis.missing_keywords) {
+                data.matching_analysis.missing_keywords.forEach(kw => {
+                    const span = document.createElement('span');
+                    span.className = 'px-3 py-1 bg-red-50 text-red-600 text-xs font-semibold rounded-full border border-red-100';
+                    span.textContent = `❌ ${kw}`;
+                    tagsContainer.appendChild(span);
+                });
+            }
+        }
+
+        // 辅助函数：安全设置文本，处理 null/undefined
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = value || '未知';
+            }
         }
     </script>
 </body>
