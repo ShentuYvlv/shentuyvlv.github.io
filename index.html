@@ -138,6 +138,10 @@
                                         <dt class="text-xs text-slate-500">分析时间</dt>
                                         <dd id="used-time" class="mt-0.5 font-medium text-slate-700">-</dd>
                                     </div>
+                                    <div>
+                                        <dt class="text-xs text-slate-500">解析状态</dt>
+                                        <dd id="parse-meta" class="mt-0.5 font-medium text-slate-700">-</dd>
+                                    </div>
                                 </dl>
                             </div>
                         </aside>
@@ -167,7 +171,7 @@
 
                             <section class="rounded-lg border border-slate-200 p-4">
                                 <h3 class="text-sm font-black text-slate-950">核心背景</h3>
-                                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                                     <div class="rounded-md border border-slate-200 p-3">
                                         <p class="text-xs text-slate-500">求职意向</p>
                                         <p id="res-intent" class="mt-1 break-all text-sm font-bold text-blue-700">-</p>
@@ -180,13 +184,26 @@
                                         <p class="text-xs text-slate-500">学历背景</p>
                                         <p id="res-edu" class="mt-1 break-all text-sm font-bold text-slate-800">-</p>
                                     </div>
+                                    <div class="rounded-md border border-slate-200 p-3">
+                                        <p class="text-xs text-slate-500">期望薪资</p>
+                                        <p id="res-salary" class="mt-1 break-all text-sm font-bold text-slate-800">-</p>
+                                    </div>
                                 </div>
+                            </section>
+
+                            <section class="rounded-lg border border-slate-200 p-4">
+                                <h3 class="text-sm font-black text-slate-950">相关项目经历</h3>
+                                <ul id="projects-container" class="mt-3 space-y-2 text-sm leading-6 text-slate-700"></ul>
                             </section>
 
                             <section class="rounded-lg border border-slate-200 p-4">
                                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <h3 class="text-sm font-black text-slate-950">匹配结论</h3>
                                     <span id="keyword-summary" class="text-xs font-bold text-slate-500">-</span>
+                                </div>
+                                <div class="mt-4">
+                                    <p class="text-xs font-bold text-slate-500">JD 提取关键词</p>
+                                    <div id="job-keywords-container" class="mt-2 flex flex-wrap gap-2"></div>
                                 </div>
                                 <div id="tags-container" class="mt-4 flex flex-wrap gap-2"></div>
                                 <div class="mt-4 rounded-md border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
@@ -207,7 +224,7 @@
     </main>
 
     <script>
-        const PRODUCTION_API_URL = 'https://web-jpfaxhhiut.cn-shanghai.fcapp.run/analyze';
+        const PRODUCTION_API_URL = 'https://aaaaaaaaai-bcvxgugdhx.cn-shanghai.fcapp.run/analyze';
         const isLocalHost = ['127.0.0.1', 'localhost', '0.0.0.0'].includes(window.location.hostname);
         const DEFAULT_API_URL = isLocalHost
             ? `${window.location.origin}/analyze`
@@ -315,10 +332,14 @@
 
             const basic = data.basic_info || {};
             const other = data.other_info || {};
+            const job = data.job_analysis || {};
             const analysis = data.matching_analysis || {};
+            const meta = data.meta || {};
             const score = clampNumber(Number.parseInt(analysis.score, 10), 0, 100);
             const matching = Array.isArray(analysis.matching_keywords) ? analysis.matching_keywords : [];
             const missing = Array.isArray(analysis.missing_keywords) ? analysis.missing_keywords : [];
+            const jobKeywords = Array.isArray(job.keywords) ? job.keywords : [];
+            const projects = Array.isArray(other.project_experience) ? other.project_experience : [];
 
             setText('res-name', basic.name);
             setText('res-phone', basic.phone);
@@ -327,9 +348,11 @@
             setText('res-intent', other.intent);
             setText('res-exp', other.years_of_experience);
             setText('res-edu', other.education);
+            setText('res-salary', other.expected_salary);
             setText('res-reason', analysis.reason);
             setText('used-file', fileName);
             setText('used-time', new Date().toLocaleString('zh-CN', { hour12: false }));
+            setText('parse-meta', `${meta.page_count || '-'} 页${meta.cache_hit ? ' · 缓存命中' : ''}`);
             setText('keyword-summary', `${matching.length} 个匹配项，${missing.length} 个缺口`);
 
             const scoreEl = document.getElementById('score-display');
@@ -349,6 +372,26 @@
                 tagsContainer.appendChild(createTag('未返回关键词', 'neutral'));
             }
 
+            const jobKeywordsContainer = document.getElementById('job-keywords-container');
+            jobKeywordsContainer.innerHTML = '';
+            jobKeywords.forEach((keyword) => jobKeywordsContainer.appendChild(createTag(keyword, 'job')));
+            if (!jobKeywords.length) jobKeywordsContainer.appendChild(createTag('未返回 JD 关键词', 'neutral'));
+
+            const projectsContainer = document.getElementById('projects-container');
+            projectsContainer.innerHTML = '';
+            projects.forEach((project) => {
+                const item = document.createElement('li');
+                item.className = 'rounded-md bg-slate-50 px-3 py-2';
+                item.textContent = project;
+                projectsContainer.appendChild(item);
+            });
+            if (!projects.length) {
+                const item = document.createElement('li');
+                item.className = 'text-slate-500';
+                item.textContent = '未提取到与岗位直接相关的项目经历。';
+                projectsContainer.appendChild(item);
+            }
+
             document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
         }
 
@@ -357,7 +400,9 @@
             return {
                 basic_info: data.basic_info || {},
                 other_info: data.other_info || {},
-                matching_analysis: data.matching_analysis || {}
+                job_analysis: data.job_analysis || {},
+                matching_analysis: data.matching_analysis || {},
+                meta: data.meta || {}
             };
         }
 
@@ -366,9 +411,10 @@
             const styles = {
                 match: 'border-emerald-200 bg-emerald-50 text-emerald-700',
                 missing: 'border-rose-200 bg-rose-50 text-rose-700',
+                job: 'border-blue-200 bg-blue-50 text-blue-700',
                 neutral: 'border-slate-200 bg-slate-50 text-slate-600'
             };
-            const prefix = type === 'match' ? '匹配' : type === 'missing' ? '缺失' : '提示';
+            const prefix = type === 'match' ? '匹配' : type === 'missing' ? '缺失' : type === 'job' ? 'JD' : '提示';
             span.className = `rounded-full border px-3 py-1 text-xs font-bold ${styles[type]}`;
             span.textContent = `${prefix}: ${text || '未知'}`;
             return span;

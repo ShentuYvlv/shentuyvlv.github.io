@@ -3,3 +3,7 @@ build
 venv
 .env
 __pycache__/
+python/
+function.zip
+*.py[cod]
+.DS_Store

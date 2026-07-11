@@ -1,0 +1,62 @@
+edition: 3.0.0
+name: ai-resume-analyzer
+access: default
+
+vars:
+  region: cn-shanghai
+  functionName: ai-resume-analyzer
+
+resources:
+  resume_analyzer:
+    component: fc3
+    actions:
+      pre-deploy:
+        - run: rm -rf python && mkdir -p python && docker run --rm --platform linux/amd64 -v "$PWD":/code -w /code python:3.10-slim pip install --no-cache-dir -r requirements.txt -t python
+          path: ./
+    props:
+      region: ${vars.region}
+      functionName: ${vars.functionName}
+      description: AI-powered PDF resume analysis API
+      runtime: custom.debian10
+      code: ./
+      memorySize: 1024
+      cpu: 1
+      timeout: 90
+      diskSize: 512
+      instanceConcurrency: 10
+      internetAccess: true
+      customRuntimeConfig:
+        command:
+          - python3
+          - main.py
+        port: 9000
+      environmentVariables:
+        PATH: /var/fc/lang/python3.10/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin:/code:/code/bin
+        PYTHONPATH: /code/python:/code
+        TZ: Asia/Shanghai
+        DASHSCOPE_API_KEY: ${env('DASHSCOPE_API_KEY')}
+        DASHSCOPE_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+        DASHSCOPE_MODEL: qwen-plus
+        CACHE_TTL_SECONDS: 3600
+        CORS_ORIGINS: https://shentuyvlv.github.io
+      triggers:
+        - triggerName: httpTrigger
+          triggerType: http
+          triggerConfig:
+            authType: anonymous
+            methods:
+              - GET
+              - POST
+              - OPTIONS
+              - HEAD
+
+  api_domain:
+    component: fc3-domain
+    props:
+      region: ${vars.region}
+      domainName: auto
+      protocol: HTTP
+      routeConfig:
+        routes:
+          - path: /*
+            functionName: ${vars.functionName}
