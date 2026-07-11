@@ -2,54 +2,66 @@ import os
 import json
 import hashlib
 import logging
-from flask import Flask, request, jsonify
+import re
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pdfplumber
 import redis
-from openai import OpenAI  # 引入 OpenAI 客户端
+from openai import OpenAI
 from dotenv import load_dotenv
 
-# 1. 加载环境变量
 load_dotenv()
 
-# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 app = Flask(__name__)
 CORS(app)
 
-# 2. 初始化 OpenAI 客户端 (适配阿里云百炼)
-# 从环境变量获取配置，如果没获取到则使用默认值
 api_key = os.getenv("DASHSCOPE_API_KEY")
 base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+DEFAULT_MODEL = os.getenv("DASHSCOPE_MODEL", "deepseek-v4-pro")
+MAX_RESUME_CHARS = int(os.getenv("MAX_RESUME_CHARS", 6000))
+MAX_JD_CHARS = int(os.getenv("MAX_JD_CHARS", 3000))
 
-# 初始化 client
 client = OpenAI(
     api_key=api_key,
     base_url=base_url
 )
 
-# 配置 Redis (可选)
 REDIS_HOST = os.getenv("REDIS_HOST", "")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 
-
 redis_client = None
 if REDIS_HOST:
     try:
-        # 创建一个临时变量尝试连接
         client_test = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
-        client_test.ping() # 尝试 Ping
-        
-        # 只有 Ping 成功了，才赋值给全局变量
+        client_test.ping()
         redis_client = client_test
         logger.info("Redis connected successfully.")
     except Exception as e:
         logger.warning(f"Redis connection failed: {e}")
-        # 【关键修改】确保失败时变量为 None，防止后续逻辑误判
-        redis_client = None 
+        redis_client = None
+
+
+@app.route('/', methods=['GET'])
+def index_page():
+    return send_from_directory(app.root_path, 'index.html')
+
+
+@app.route('/favicon.ico', methods=['GET'])
+def favicon():
+    return ('', 204)
+
+
+def normalize_model(raw_model):
+    """返回安全的模型名，默认使用环境变量配置。"""
+    model = (raw_model or DEFAULT_MODEL).strip()
+    if not re.fullmatch(r"[A-Za-z0-9._:/-]{1,80}", model):
+        return None
+    return model
+
 
 def extract_text_from_pdf(file_stream):
     """解析 PDF 提取文本"""
@@ -65,23 +77,36 @@ def extract_text_from_pdf(file_stream):
         return None
     return text.strip()
 
-def analyze_with_llm(resume_text, job_description):
+
+def parse_llm_json(content):
+    """兼容模型偶尔返回 Markdown 包裹或解释性文本的情况。"""
+    cleaned = content.replace("```json", "").replace("```", "").strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", cleaned)
+        if not match:
+            raise
+        return json.loads(match.group(0))
+
+
+def analyze_with_llm(resume_text, job_description, model):
     """使用 OpenAI 兼容接口调用通义千问"""
-    
+
     prompt = f"""
     你是一个专业的资深 HR。请根据以下【简历内容】和【岗位描述】，完成两个任务：
     1. 提取简历关键信息。
-    2. 计算简历与岗位的匹配度并给出理由。
+    2. 计算简历与岗位的匹配度并给出可解释理由。
 
     【简历内容开始】
-    {resume_text[:3000]} 
+    {resume_text[:MAX_RESUME_CHARS]}
     【简历内容结束】
 
     【岗位描述开始】
-    {job_description[:1000]}
+    {job_description[:MAX_JD_CHARS]}
     【岗位描述结束】
 
-    请严格以 JSON 格式返回，不要包含 markdown 格式标记（如 ```json），直接返回 JSON 字符串。JSON 结构如下：
+    请严格以 JSON 格式返回，不要包含 markdown 标记。JSON 结构如下：
     {{
         "basic_info": {{
             "name": "姓名",
@@ -96,7 +121,7 @@ def analyze_with_llm(resume_text, job_description):
         }},
         "matching_analysis": {{
             "score": 0-100之间的整数评分,
-            "reason": "简短的评分理由(50字以内)",
+            "reason": "简短的评分理由，说明匹配优势和主要风险，80字以内",
             "matching_keywords": ["匹配技能1", "匹配技能2"],
             "missing_keywords": ["缺失技能1"]
         }}
@@ -104,24 +129,19 @@ def analyze_with_llm(resume_text, job_description):
     """
 
     try:
-        # --- 核心修改：使用 client.chat.completions.create ---
         completion = client.chat.completions.create(
-            model="qwen-plus",  # 或者 "qwen-turbo"
+            model=model,
             messages=[
                 {'role': 'system', 'content': 'You are a helpful HR assistant.'},
                 {'role': 'user', 'content': prompt}
             ],
-            # 可选：设置 temperature 控制随机性，0.1 比较严谨
-            temperature=0.1, 
+            temperature=0.1,
         )
-        
-        # 获取返回内容
+
         content = completion.choices[0].message.content
-        
-        # 清洗可能存在的 Markdown 标记 (AI 有时还是会加 ```json)
-        content = content.replace("```json", "").replace("```", "").strip()
-        
-        return json.loads(content)
+        result = parse_llm_json(content)
+        result["model"] = model
+        return result
 
     except json.JSONDecodeError:
         logger.error("Failed to parse JSON from LLM response")
@@ -130,41 +150,56 @@ def analyze_with_llm(resume_text, job_description):
         logger.error(f"OpenAI Client Error: {e}")
         return None
 
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        "status": "ok",
+        "default_model": DEFAULT_MODEL,
+        "redis_enabled": bool(redis_client)
+    })
+
+
 @app.route('/analyze', methods=['POST'])
 def analyze_resume():
     if 'resume' not in request.files:
-        return jsonify({"error": "No resume file uploaded"}), 400
-    
+        return jsonify({"error": "请上传简历 PDF 文件"}), 400
+
     file = request.files['resume']
-    jd = request.form.get('jd', '通用岗位')
+    jd = request.form.get('jd', '').strip()
+    model = normalize_model(request.form.get('model'))
 
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({"error": "请选择简历文件"}), 400
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({"error": "仅支持 PDF 简历"}), 400
+    if not jd:
+        return jsonify({"error": "请填写岗位描述 JD"}), 400
+    if not model:
+        return jsonify({"error": "model 仅支持字母、数字、点、下划线、短横线、冒号和斜杠，长度不超过 80"}), 400
+    if not api_key:
+        return jsonify({"error": "服务端未配置 DASHSCOPE_API_KEY"}), 500
 
     try:
-        # 1. 解析 PDF
         resume_text = extract_text_from_pdf(file)
         if not resume_text:
-            return jsonify({"error": "Failed to extract text from PDF"}), 400
+            return jsonify({"error": "无法从 PDF 提取文本，请确认不是扫描图片版简历"}), 400
 
-        # 2. 缓存检查
         cache_key = None
         if redis_client:
-            fingerprint = hashlib.md5((resume_text[:100] + jd).encode('utf-8')).hexdigest()
+            fingerprint = hashlib.md5((model + resume_text[:500] + jd).encode('utf-8')).hexdigest()
             cache_key = f"resume_analysis:{fingerprint}"
             cached_result = redis_client.get(cache_key)
             if cached_result:
                 logger.info("Cache hit!")
                 return jsonify(json.loads(cached_result))
 
-        # 3. AI 分析
-        result = analyze_with_llm(resume_text, jd)
+        result = analyze_with_llm(resume_text, jd, model)
         if not result:
-            return jsonify({"error": "AI analysis failed"}), 500
+            return jsonify({"error": "AI 分析失败，请检查 model 是否可用或查看服务端日志"}), 500
 
-        # 4. 写入缓存
         if redis_client and cache_key:
-            redis_client.setex(cache_key, 3600, json.dumps(result))
+            redis_client.setex(cache_key, 3600, json.dumps(result, ensure_ascii=False))
 
         return jsonify(result)
 
